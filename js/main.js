@@ -20,8 +20,8 @@ var currentTile = 0;
 var pointerSprite;
 var unicornSprite;
 
-var MAP_MAX_W = 256;
-var MAP_MAX_H = 256;
+var MAP_MAX_W = 128;
+var MAP_MAX_H = 128;
 
 
 var groupTiles;
@@ -104,6 +104,7 @@ function create() {
 
 
 
+
     //  Creates a new blank layer and sets the map dimensions.
     //  In this case the map is 40x30 tiles in size and the tiles are TILE_WxTILE_H pixels in size.
     layer = map.create('level1', MAP_MAX_W, MAP_MAX_H, TILE_W, TILE_H);
@@ -116,6 +117,13 @@ function create() {
 
 
     currentLayer = layer;
+
+
+    map.putTile(0, 10, 10, currentLayer);
+
+
+
+
 
 
     //  Create our tile selector at the top of the screen
@@ -152,6 +160,20 @@ function create() {
     pointerSprite = game.add.sprite(200, 300, 'pointer');
     pointerSprite.fixedToCamera = true;
    // groupCursors.add(pointerSprite);    
+
+
+debugger;
+    for (var y=0; y<MAP_MAX_H; ++y)
+    {
+        for (var x=0; x<MAP_MAX_W; ++x)
+        {
+            map.putTile(currentTile, x, y, currentLayer);
+        }
+    }
+
+    map.fill(currentTile, 0, 0, 10, 10, currentLayer);
+
+   
 }
 
 
@@ -181,6 +203,8 @@ function update () {
     }    
 */
 
+  //  move_camera_by_pointer(game.input.mousePointer);
+
 
     if (cursors.left.isDown)
     {
@@ -199,6 +223,8 @@ function update () {
     {
         game.camera.y += 4;
     }
+
+    updateMarker();
 }
 
 function render() {
@@ -210,6 +236,19 @@ function render() {
     game.debug.text('MouseX=' + game.input.activePointer.x + ' MouseY=' + game.input.activePointer.y, 16, 550);    
 }
 
+var o_mcamera;
+
+function move_camera_by_pointer(o_pointer) {
+    if (!o_pointer.timeDown) { return; }
+    if (o_pointer.isDown && !o_pointer.targetObject) {
+        if (o_mcamera) {
+            game.camera.x += o_mcamera.x - o_pointer.position.x;
+            game.camera.y += o_mcamera.y - o_pointer.position.y;
+        }
+        o_mcamera = o_pointer.position.clone();
+    }
+    if (o_pointer.isUp) { o_mcamera = null; }
+}
 
 
 function pickTile(sprite, pointer) {
@@ -235,7 +274,10 @@ function updateMarker() {
     if (game.input.mousePointer.isDown)
     {
         map.putTile(currentTile, currentLayer.getTileX(marker.x), currentLayer.getTileY(marker.y), currentLayer);
-        // map.fill(currentTile, currentLayer.getTileX(marker.x), currentLayer.getTileY(marker.y), 4, 4, currentLayer);
+//        map.putTile(currentTile, 10,10 , currentLayer);
+        
+     //map.fill(currentTile, currentLayer.getTileX(marker.x), currentLayer.getTileY(marker.y), 4, 4, currentLayer);
+
     }
 
 }
