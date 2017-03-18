@@ -23,15 +23,31 @@ var unicornSprite;
 var MAP_MAX_W = 128;
 var MAP_MAX_H = 128;
 
-var TILE_MAX_W = 32;
-var TILE_MAX_H = 32;
+var TILE_MAX_W = 4;
+var TILE_MAX_H = 4;
+
+
+var tileOffsetX = TILE_W*2;
+var tileOffsetY = TILE_H*2;
+
+var tileBoundsW = TILE_MAX_W*TILE_W;
+var tileBoundsH = TILE_MAX_H*TILE_H;
+
+var tileBoundsMinX0 = tileOffsetX;
+var tileBoundsMinY0 = tileOffsetY;
+
+var tileBoundsMinX1 = tileBoundsMinX0 + tileBoundsW;
+var tileBoundsMinY1 = tileBoundsMinY0 + tileBoundsH;
 
 var groupTiles;
 var groupOverlays;
 var groupCursors;
 
-
+// our pool of sprites for the scrolling map
 var spriteArray = [];
+
+// our pool of images/textures for the sprites used in the scrolling map
+var imageArray = [];
 
 canvas = document.getElementById("canvas");
 
@@ -74,6 +90,20 @@ function preload() {
         game.load.image('player','assets/sprites/phaser-dude.png');
     }
 
+    game.load.crossOrigin = "Anonymous";
+    var imageId = 0;
+    for (var y=0; y<TILE_MAX_H; ++y)
+    {
+        for (var x=0; x<TILE_MAX_W; ++x)
+        {
+            var id = imageId.toString();
+            var url = "https://www.gravatar.com/avatar/" + id + "?s=64&d=identicon&r=PG";
+            game.load.image(id, url);
+            imageId++;
+        }
+    }
+
+
 }
 
 function create() {
@@ -106,18 +136,25 @@ function create() {
 
 
 
+    // create sprites
 
+
+
+    var imageId = 0;
     for (var y=0; y<TILE_MAX_H; ++y)
     {
         for (var x=0; x<TILE_MAX_W; ++x)
         {
-            var sprite = game.add.sprite(x*TILE_W, y*TILE_H, TILE_SPRITE);
+            var id = imageId.toString(); // TILE_SPRITE
+            var sprite = game.add.sprite(tileOffsetX + x*TILE_W, tileOffsetY + y*TILE_H, id);
             //sprite.inputEnabled = true;
             sprite.fixedToCamera = false;
             spriteArray.push(sprite);
+            imageId++;
         }
     }
 
+    // need to set this up so that camera can roam about
     game.world.setBounds(0, 0, TILE_W*TILE_MAX_W, TILE_H*TILE_MAX_H);
     
     if (FOLLOW_CAM)
@@ -186,28 +223,37 @@ function update ()
 
 
 
-   move_camera_by_pointer(game.input.mousePointer);
+    move_camera_by_pointer(game.input.mousePointer);
+
+    var ox = 0;
+    var oy = 0;
 
 
     if (cursors.left.isDown)
     {
-        game.camera.x -= 4;
+        ox = -4;
     }
     else if (cursors.right.isDown)
     {
-        game.camera.x += 4;
+        ox = 4;
     }
 
     if (cursors.up.isDown)
     {
-        game.camera.y -= 4;
+        oy = -4;
     }
     else if (cursors.down.isDown)
     {
-        game.camera.y += 4;
+        oy = 4;
     }
 
- 
+    if (false)
+    {
+        game.camera.x += ox;
+        game.camera.y += oy;
+        ox = 0;
+        oy = 0;
+    }
 
     updateMarker();
 
@@ -221,6 +267,30 @@ function update ()
     for (var n=0; n<spriteArray.length; ++n)
     {
         var sprite = spriteArray[n];
+        sprite.x += ox;
+        sprite.y += oy;
+
+        if (sprite.x < (tileBoundsMinX0-TILE_W))
+        {
+            sprite.x += tileBoundsW;
+        }
+
+        if (sprite.x > tileBoundsMinX1)
+        {
+            sprite.x -= tileBoundsW;
+        }
+
+
+        if (sprite.y < (tileBoundsMinY0-TILE_H))
+        {
+            sprite.y += tileBoundsH;
+        }
+        if (sprite.y > tileBoundsMinY1)
+        {
+            sprite.y -= tileBoundsH;
+        }
+
+
         totalSprites++;
         if (sprite.inCamera)
         {
