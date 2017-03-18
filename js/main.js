@@ -1,11 +1,11 @@
 
 var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', { preload: preload, create: create, update: update, render: render });
 
-var TILE_W = 32;
-var TILE_H = 32;
-var TILE_SPRITE = 'unicorn32';
+var TILE_W = 64;
+var TILE_H = 64;
+var TILE_SPRITE = 'unicorn64';
 
-
+var FOLLOW_CAM = false;
 
 var sprite;
 
@@ -23,13 +23,15 @@ var unicornSprite;
 var MAP_MAX_W = 128;
 var MAP_MAX_H = 128;
 
+var TILE_MAX_W = 32;
+var TILE_MAX_H = 32;
 
 var groupTiles;
 var groupOverlays;
 var groupCursors;
 
 
-
+var spriteArray = [];
 
 canvas = document.getElementById("canvas");
 
@@ -67,8 +69,10 @@ function preload() {
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
 
 
-
-    game.load.image('player','assets/sprites/phaser-dude.png');
+    if (FOLLOW_CAM)
+    {
+        game.load.image('player','assets/sprites/phaser-dude.png');
+    }
 
 }
 
@@ -83,51 +87,17 @@ function create() {
     groupOverlays = game.add.group();
     groupCursors = game.add.group();
 
-/*
-    //  This creates a simple sprite that is using our loaded image and
-    //  displays it on-screen
-    sprite = game.add.sprite(400, 300, 'unicorn');
-    sprite.anchor.setTo(0.5, 0.5);
-
-
-    game.add.tileSprite(0, 0, 1920, 1920, 'unicorn64');
-*/
 
 
 
-
-    //  Creates a blank tilemap
-    map = game.add.tilemap();
-
-    //  Add a Tileset image to the map
-    map.addTilesetImage(TILE_SPRITE);
-
-
-
-
-    //  Creates a new blank layer and sets the map dimensions.
-    //  In this case the map is 40x30 tiles in size and the tiles are TILE_WxTILE_H pixels in size.
-    layer = map.create('level1', MAP_MAX_W, MAP_MAX_H, TILE_W, TILE_H);
-    layer.scrollFactorX = 0.5;
-    layer.scrollFactorY = 0.5;
-
-    //  Resize the world
-    layer.resizeWorld();
-
-
-
-    currentLayer = layer;
-
-
-    map.putTile(0, 10, 10, currentLayer);
-
-
+//    var newsprite = game.add.sprite(400, 300, 'unicorn');
+//    newsprite.anchor.setTo(0.5, 0.5);
 
 
 
 
     //  Create our tile selector at the top of the screen
-    createTileSelector();
+    //createTileSelector();
 
     game.input.addMoveCallback(updateMarker, this);    
 
@@ -135,25 +105,43 @@ function create() {
 
 
 
-/*
-    game.world.setBounds(0, 0, 1920, 1920);
-    game.physics.startSystem(Phaser.Physics.P2JS);
-    player = game.add.sprite(game.world.centerX, game.world.centerY, 'player');
-    game.physics.p2.enable(player);
-    player.body.fixedRotation = true;
-
-    //  Notice that the sprite doesn't have any momentum at all,
-    //  it's all just set by the camera follow type.
-    //  0.1 is the amount of linear interpolation to use.
-    //  The smaller the value, the smooth the camera (and the longer it takes to catch up)
-    game.camera.follow(player, Phaser.Camera.FOLLOW_LOCKON, 0.1, 0.1);    
-*/
 
 
+    for (var y=0; y<TILE_MAX_H; ++y)
+    {
+        for (var x=0; x<TILE_MAX_W; ++x)
+        {
+            var sprite = game.add.sprite(x*TILE_W, y*TILE_H, TILE_SPRITE);
+            //sprite.inputEnabled = true;
+            sprite.fixedToCamera = false;
+            spriteArray.push(sprite);
+        }
+    }
+
+    game.world.setBounds(0, 0, TILE_W*TILE_MAX_W, TILE_H*TILE_MAX_H);
+    
+    if (FOLLOW_CAM)
+    {
+        game.world.setBounds(0, 0, 1920, 1920);
+        game.physics.startSystem(Phaser.Physics.P2JS);
+        player = game.add.sprite(game.world.centerX, game.world.centerY, 'player');
+        game.physics.p2.enable(player);
+        player.body.fixedRotation = true;
+
+        //  Notice that the sprite doesn't have any momentum at all,
+        //  it's all just set by the camera follow type.
+        //  0.1 is the amount of linear interpolation to use.
+        //  The smaller the value, the smooth the camera (and the longer it takes to catch up)
+        game.camera.follow(player, Phaser.Camera.FOLLOW_LOCKON, 0.1, 0.1);    
+    }
 
 
-    unicornSprite = game.add.sprite(100, 300, 'unicorn64');
-    unicornSprite.fixedToCamera = true;
+
+
+
+
+//    unicornSprite = game.add.sprite(100, 300, 'unicorn64');
+ //   unicornSprite.fixedToCamera = true;
 
 
 
@@ -161,49 +149,44 @@ function create() {
     pointerSprite.fixedToCamera = true;
    // groupCursors.add(pointerSprite);    
 
-
-debugger;
-    for (var y=0; y<MAP_MAX_H; ++y)
-    {
-        for (var x=0; x<MAP_MAX_W; ++x)
-        {
-            map.putTile(currentTile, x, y, currentLayer);
-        }
-    }
-
-    map.fill(currentTile, 0, 0, 10, 10, currentLayer);
-
    
 }
 
 
-function update () {
+var visibleSprites = 0;
+var totalSprites = 0;
+
+function update () 
+{
     
-    //sprite.angle += 1;
+    if (FOLLOW_CAM)
+    {
+
+        player.body.setZeroVelocity();
+
+        if (cursors.up.isDown)
+        {
+            player.body.moveUp(300)
+        }
+        else if (cursors.down.isDown)
+        {
+            player.body.moveDown(300);
+        }
+
+        if (cursors.left.isDown)
+        {
+            player.body.velocity.x = -300;
+        }
+        else if (cursors.right.isDown)
+        {
+            player.body.moveRight(300);
+        }    
+    }
     
-/*
-    player.body.setZeroVelocity();
 
-    if (cursors.up.isDown)
-    {
-        player.body.moveUp(300)
-    }
-    else if (cursors.down.isDown)
-    {
-        player.body.moveDown(300);
-    }
 
-    if (cursors.left.isDown)
-    {
-        player.body.velocity.x = -300;
-    }
-    else if (cursors.right.isDown)
-    {
-        player.body.moveRight(300);
-    }    
-*/
 
-  //  move_camera_by_pointer(game.input.mousePointer);
+   move_camera_by_pointer(game.input.mousePointer);
 
 
     if (cursors.left.isDown)
@@ -224,7 +207,38 @@ function update () {
         game.camera.y += 4;
     }
 
+ 
+
     updateMarker();
+
+
+
+    visibleSprites = 0;
+    totalSprites = 0;
+    // perform bounds checking against sprites
+    var px = game.input.activePointer.x;
+    var py = game.input.activePointer.y;
+    for (var n=0; n<spriteArray.length; ++n)
+    {
+        var sprite = spriteArray[n];
+        totalSprites++;
+        if (sprite.inCamera)
+        {
+            visibleSprites++;
+            if (sprite.getBounds().contains(px, py)) //.input.pointerOver())
+            {
+                sprite.alpha = 1;
+            }
+            else
+            {
+                sprite.alpha = 0.5;
+            }
+        }
+
+    }
+ 
+
+
 }
 
 function render() {
@@ -232,7 +246,8 @@ function render() {
     game.debug.text("Canvas", 32, 32);
     //game.debug.spriteInfo(sprite, 32, 64);
 
-
+    game.debug.text('CameraX=' + game.camera.x + ' CameraY=' + game.camera.y, 16, 510);    
+    game.debug.text('VisibleSprites=' + visibleSprites + ' TotalSprites=' + totalSprites, 16, 530);    
     game.debug.text('MouseX=' + game.input.activePointer.x + ' MouseY=' + game.input.activePointer.y, 16, 550);    
 }
 
@@ -268,8 +283,10 @@ function updateMarker() {
 
     pointerSprite.cameraOffset.setTo(game.input.activePointer.x, game.input.activePointer.y);
 
+/*
     marker.x = currentLayer.getTileX(game.input.activePointer.worldX) * TILE_W;
     marker.y = currentLayer.getTileY(game.input.activePointer.worldY) * TILE_H;
+
 
     if (game.input.mousePointer.isDown)
     {
@@ -279,7 +296,7 @@ function updateMarker() {
      //map.fill(currentTile, currentLayer.getTileX(marker.x), currentLayer.getTileY(marker.y), 4, 4, currentLayer);
 
     }
-
+*/
 }
 
 
