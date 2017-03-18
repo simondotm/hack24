@@ -1,9 +1,35 @@
 
 var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', { preload: preload, create: create, update: update, render: render });
+
+var TILE_W = 32;
+var TILE_H = 32;
+var TILE_SPRITE = 'unicorn32';
+
+
+
 var sprite;
 
 var player;
 var cursors;
+var map;
+var layer;
+var currentLayer;
+var currentTile = 0;
+
+
+var pointerSprite;
+var unicornSprite;
+
+var MAP_MAX_W = 256;
+var MAP_MAX_H = 256;
+
+
+var groupTiles;
+var groupOverlays;
+var groupCursors;
+
+
+
 
 canvas = document.getElementById("canvas");
 
@@ -27,6 +53,10 @@ function preload() {
     game.load.image('unicorn', 'assets/unicorn2.jpg');
     image = game.load.image('unicorn64', 'assets/unicorn64.png');
     image.smoothed = false;
+    image = game.load.image('unicorn32', 'assets/unicorn32.png');
+    image.smoothed = false;
+
+    game.load.image('pointer', 'assets/pointer.png');
 
 
     game.scale.minWidth = 640;
@@ -48,6 +78,12 @@ function create() {
     game.stage.backgroundColor = "#4488AA";
     game.stage.smoothed = false;
 
+
+    groupTiles = game.add.group();
+    groupOverlays = game.add.group();
+    groupCursors = game.add.group();
+
+/*
     //  This creates a simple sprite that is using our loaded image and
     //  displays it on-screen
     sprite = game.add.sprite(400, 300, 'unicorn');
@@ -55,35 +91,75 @@ function create() {
 
 
     game.add.tileSprite(0, 0, 1920, 1920, 'unicorn64');
+*/
 
-    game.world.setBounds(0, 0, 1920, 1920);
 
 
-    game.physics.startSystem(Phaser.Physics.P2JS);
-    player = game.add.sprite(game.world.centerX, game.world.centerY, 'player');
 
-    
-    game.physics.p2.enable(player);
+    //  Creates a blank tilemap
+    map = game.add.tilemap();
 
-    player.body.fixedRotation = true;
+    //  Add a Tileset image to the map
+    map.addTilesetImage(TILE_SPRITE);
+
+
+
+    //  Creates a new blank layer and sets the map dimensions.
+    //  In this case the map is 40x30 tiles in size and the tiles are TILE_WxTILE_H pixels in size.
+    layer = map.create('level1', MAP_MAX_W, MAP_MAX_H, TILE_W, TILE_H);
+    layer.scrollFactorX = 0.5;
+    layer.scrollFactorY = 0.5;
+
+    //  Resize the world
+    layer.resizeWorld();
+
+
+
+    currentLayer = layer;
+
+
+    //  Create our tile selector at the top of the screen
+    createTileSelector();
+
+    game.input.addMoveCallback(updateMarker, this);    
 
     cursors = game.input.keyboard.createCursorKeys();
 
+
+
+/*
+    game.world.setBounds(0, 0, 1920, 1920);
+    game.physics.startSystem(Phaser.Physics.P2JS);
+    player = game.add.sprite(game.world.centerX, game.world.centerY, 'player');
+    game.physics.p2.enable(player);
+    player.body.fixedRotation = true;
 
     //  Notice that the sprite doesn't have any momentum at all,
     //  it's all just set by the camera follow type.
     //  0.1 is the amount of linear interpolation to use.
     //  The smaller the value, the smooth the camera (and the longer it takes to catch up)
     game.camera.follow(player, Phaser.Camera.FOLLOW_LOCKON, 0.1, 0.1);    
+*/
 
+
+
+
+    unicornSprite = game.add.sprite(100, 300, 'unicorn64');
+    unicornSprite.fixedToCamera = true;
+
+
+
+    pointerSprite = game.add.sprite(200, 300, 'pointer');
+    pointerSprite.fixedToCamera = true;
+   // groupCursors.add(pointerSprite);    
 }
 
 
 function update () {
     
-    sprite.angle += 1;
+    //sprite.angle += 1;
     
-
+/*
     player.body.setZeroVelocity();
 
     if (cursors.up.isDown)
@@ -103,10 +179,91 @@ function update () {
     {
         player.body.moveRight(300);
     }    
+*/
+
+
+    if (cursors.left.isDown)
+    {
+        game.camera.x -= 4;
+    }
+    else if (cursors.right.isDown)
+    {
+        game.camera.x += 4;
+    }
+
+    if (cursors.up.isDown)
+    {
+        game.camera.y -= 4;
+    }
+    else if (cursors.down.isDown)
+    {
+        game.camera.y += 4;
+    }
 }
 
 function render() {
 
     game.debug.text("Canvas", 32, 32);
-    game.debug.spriteInfo(sprite, 32, 64);
+    //game.debug.spriteInfo(sprite, 32, 64);
+
+
+    game.debug.text('MouseX=' + game.input.activePointer.x + ' MouseY=' + game.input.activePointer.y, 16, 550);    
+}
+
+
+
+function pickTile(sprite, pointer) {
+
+    currentTile = game.math.snapToFloor(pointer.x, TILE_W) / TILE_W;
+
+}
+
+function updateMarker() {
+
+
+    pointerSprite.x = 0;//game.input.activePointer.x;
+    pointerSprite.y = 0;//game.input.activePointer.y;
+    
+    //unicornSprite.x = 0;game.input.activePointer.x;
+    //unicornSprite.y = 0;game.input.activePointer.y;
+
+    pointerSprite.cameraOffset.setTo(game.input.activePointer.x, game.input.activePointer.y);
+
+    marker.x = currentLayer.getTileX(game.input.activePointer.worldX) * TILE_W;
+    marker.y = currentLayer.getTileY(game.input.activePointer.worldY) * TILE_H;
+
+    if (game.input.mousePointer.isDown)
+    {
+        map.putTile(currentTile, currentLayer.getTileX(marker.x), currentLayer.getTileY(marker.y), currentLayer);
+        // map.fill(currentTile, currentLayer.getTileX(marker.x), currentLayer.getTileY(marker.y), 4, 4, currentLayer);
+    }
+
+}
+
+
+
+
+function createTileSelector() {
+
+    //  Our tile selection window
+    var tileSelector = game.add.group();
+
+    var tileSelectorBackground = game.make.graphics();
+    tileSelectorBackground.beginFill(0x000000, 0.5);
+    tileSelectorBackground.drawRect(0, 0, 800, 34);
+    tileSelectorBackground.endFill();
+
+    tileSelector.add(tileSelectorBackground);
+
+    var tileStrip = tileSelector.create(1, 1, TILE_SPRITE);
+    tileStrip.inputEnabled = true;
+    tileStrip.events.onInputDown.add(pickTile, this);
+
+    tileSelector.fixedToCamera = true;
+
+    //  Our painting marker
+    marker = game.add.graphics();
+    marker.lineStyle(2, 0x000000, 1);
+    marker.drawRect(0, 0, TILE_W, TILE_H);
+
 }
