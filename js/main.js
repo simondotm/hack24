@@ -3,7 +3,7 @@ var game = new Phaser.Game(640, 640, Phaser.AUTO, 'phaser-example', { preload: p
 
 
 var FOLLOW_CAM = false;
-
+var DEBUG = false;
 var sprite;
 
 var player;
@@ -19,12 +19,15 @@ var TILE_W = 64;
 var TILE_H = 64;
 var TILE_SPRITE = 'unicorn64';
 
-var TILE_MAX_W = 640/64;//4;
-var TILE_MAX_H = 640/64; //4;
+// HACKED IN LAST 10 MINS SO VERY BIG!
+var TILE_MAX_W = 2048/TILE_W;//4;
+var TILE_MAX_H = 1280/TILE_H; //4;
 
 
-var tileOffsetX = 0;//TILE_W*2;
-var tileOffsetY = 0;//TILE_H*2;
+var tileOffsetX = -TILE_W*1;
+var tileOffsetY = -TILE_H*1;
+
+
 
 var tileBoundsW = TILE_MAX_W*TILE_W;
 var tileBoundsH = TILE_MAX_H*TILE_H;
@@ -78,24 +81,21 @@ function preload() {
 
     game.load.image('grid', 'assets/grid64.png');
 
-/*
+
     game.scale.minWidth = 640;
     game.scale.minHeight = 480;
     game.scale.maxWidth = 1280;
     game.scale.maxHeight = 960;
     game.scale.pageAlignHorizontally = true;
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
-*/
+
 
     // get the dimensions of the canvas
     var apiUrl = "https://pixel-pusher.azurewebsites.net/Canvas/";
 //   var apiUrl = "https://www.gravatar.com/avatar/" + 0 + "?s=64&d=identicon&r=PG";            
-    $.getJSON(apiUrl, function(data) { serverTileConfig = data; alert(data);});    
+    $.getJSON(apiUrl, serverConfigLoaded);    
 
-    if (serverTileConfig == null)
-    {
-        alert("could not load server config");
-    }
+
 
 
     if (FOLLOW_CAM)
@@ -277,11 +277,11 @@ function moveSprites(ox, oy)
             visibleSprites++;
             if (sprite.getBounds().contains(px, py)) //.input.pointerOver())
             {
-                sprite.alpha = 1;
+                sprite.alpha = 0.5;
             }
             else
             {
-                sprite.alpha = 0.5;
+                sprite.alpha = 1.0;
             }
         }
 
@@ -389,13 +389,17 @@ function update ()
 
 function render() {
 
-    game.debug.text("Canvas", 32, 32);
-    //game.debug.spriteInfo(sprite, 32, 64);
+    if (DEBUG)
+    {
+        game.debug.text("Canvas", 32, 32);
+        //game.debug.spriteInfo(sprite, 32, 64);
 
-    game.debug.text('CameraX=' + game.camera.x + ' CameraY=' + game.camera.y, 16, 510);    
-    game.debug.text('VisibleSprites=' + visibleSprites + ' TotalSprites=' + totalSprites, 16, 530);    
-    game.debug.text('MouseX=' + game.input.activePointer.x + ' MouseY=' + game.input.activePointer.y, 16, 550);    
-    game.debug.text('StageW=' + game.stage.width + ' StageH=' + game.stage.height, 16, 570);    
+        game.debug.text('CameraX=' + game.camera.x + ' CameraY=' + game.camera.y, 16, 510);    
+        game.debug.text('VisibleSprites=' + visibleSprites + ' TotalSprites=' + totalSprites, 16, 530);    
+        game.debug.text('MouseX=' + game.input.activePointer.x + ' MouseY=' + game.input.activePointer.y, 16, 550);    
+        game.debug.text('StageW=' + game.stage.width + ' StageH=' + game.stage.height, 16, 570);    
+    }
+
 }
 
 
@@ -479,6 +483,19 @@ function fileComplete(progress, cacheKey, success, totalLoaded, totalFiles)
 {
 	console.log("File Complete: " + progress + "% - " + totalLoaded + " out of " + totalFiles);
 
+
+    console.log("image key " + cacheKey);
+
+    var tile = findServerTileById(cacheKey);
+    if (tile != null)
+    {
+        console.log("found tile for this id, setting sprite id");
+        var index = tile.index;
+        index += TILE_MAX_W+1;
+        spriteArray[index].loadTexture(cacheKey);
+
+    }
+
 /*
 	text.setText("File Complete: " + progress + "% - " + totalLoaded + " out of " + totalFiles);
 
@@ -501,4 +518,112 @@ function loadComplete() {
 
 	console.log("Load Complete");
 
+}
+
+
+var serverTileSize = 0;
+var serverTotalTiles = 0;
+var serverTilesArray = [];
+var serverTilesOriginX = 0;
+var serverTilesOriginY = 0;
+
+function serverConfigLoaded(data) { 
+
+
+
+    serverTileConfig = data; 
+
+    if (data == null)
+    {
+        alert("could not load server config");
+        return;
+    }    
+
+    // {"OriginX":-4,"OriginY":4,"Size":8,"Version":2}
+
+    serverTileSize = serverTileConfig.Size;
+    serverTilesOriginX = serverTileConfig.OriginX;
+    serverTilesOriginY = serverTileConfig.OriginY;
+
+    serverTotalTiles = serverTileSize*serverTileSize;
+
+    console.log("serverTileSize is " + serverTileSize);
+
+    serverTilesArray = new Array();
+    // create server tiles object array
+    for (var y=0; y<serverTileSize; ++y) {
+        for (var x=0; x<serverTileSize; ++x) {
+
+            var xc = serverTilesOriginX + x;
+            var yc = serverTilesOriginY - y;
+
+            var tileObject = {};
+            tileObject.x = xc;
+            tileObject.y = yc;
+            tileObject.id = null;
+            
+            serverTilesArray.push(tileObject);
+
+
+        }
+    }
+
+
+
+    // ok now kick off a fetch for the tile infos
+    for (var y=0; y<serverTileSize; ++y) {
+        for (var x=0; x<serverTileSize; ++x) {
+            
+            var xc = serverTilesOriginX + x;
+            var yc = serverTilesOriginY - y;
+            var apiUrl = "https://pixel-pusher.azurewebsites.net/Tile?X=" + xc + "&Y=" + yc;
+
+            $.getJSON(apiUrl, serverTileLoaded);    
+
+        }
+    }
+
+}
+
+function findServerTileById(id)
+{
+    for (var n=0; n<serverTotalTiles; ++n)
+    {
+        var tile = serverTilesArray[n];
+        if (tile.id == id)
+        {
+            return tile;
+        }
+    }
+    return null;
+}
+
+
+function serverTileLoaded(data) { 
+
+    if (data == null) {
+        alert("could not load server tile");
+        return;
+    }
+
+
+    console.log("x=" + data.X + " y=" + data.Y + " url=" + data.ImageUrl + " id=" + data.TileId);
+
+    var nx = data.X - serverTilesOriginX;
+    var ny = data.Y + serverTilesOriginY;
+    var index = ny*serverTileSize+nx;
+    var tileObject = serverTilesArray[index];
+
+    if (tileObject == null) {
+        console.log("ERROR: broke object nx=" + nx + " ny=" + ny + " index=" + index);
+        return;
+    }
+    tileObject.meta = data;
+    tileObject.id = data.TileId;
+    tileObject.index = index;
+
+    var gravId = data.TileId.substring(0,8);
+    var imgUrl = "https://www.gravatar.com/avatar/" + gravId + "?s=64&d=identicon&r=PG";            
+    game.load.image(data.TileId.toString(), imgUrl);        
+    game.load.start();    
 }
