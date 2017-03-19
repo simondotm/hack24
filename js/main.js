@@ -45,6 +45,10 @@ var spriteArray = [];
 // our pool of images/textures for the sprites used in the scrolling map
 var imageArray = [];
 
+
+var serverTileConfig = null;
+
+
 canvas = document.getElementById("canvas");
 
 ctx = canvas.getContext('2d');
@@ -83,6 +87,17 @@ function preload() {
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
 */
 
+    // get the dimensions of the canvas
+    var apiUrl = "https://pixel-pusher.azurewebsites.net/Canvas/";
+//   var apiUrl = "https://www.gravatar.com/avatar/" + 0 + "?s=64&d=identicon&r=PG";            
+    $.getJSON(apiUrl, function(data) { serverTileConfig = data; alert(data);});    
+
+    if (serverTileConfig == null)
+    {
+        alert("could not load server config");
+    }
+
+
     if (FOLLOW_CAM)
     {
         game.load.image('player','assets/sprites/phaser-dude.png');
@@ -101,7 +116,7 @@ function preload() {
             //url = "http://loremflickr.com/64/64";
             //url = "https://unsplash.it/64/64/?random";
             url = 'assets/grid64.png';
-            game.load.image(id, url);
+            game.load.image('empty', url);
             imageId++;
         }
     }
@@ -153,7 +168,7 @@ function create() {
         {
             //var id = 'grid';
             var id = imageId.toString(); // TILE_SPRITE
-            var sprite = game.add.sprite(tileOffsetX + x*TILE_W, tileOffsetY + y*TILE_H, id);
+            var sprite = game.add.sprite(tileOffsetX + x*TILE_W, tileOffsetY + y*TILE_H, 'empty');
             //sprite.inputEnabled = true;
             sprite.fixedToCamera = false;
             sprite.simonsId = imageId;
@@ -202,70 +217,9 @@ function create() {
 var visibleSprites = 0;
 var totalSprites = 0;
 
-function update () 
+
+function moveSprites(ox, oy)
 {
-    
-    if (FOLLOW_CAM)
-    {
-
-        player.body.setZeroVelocity();
-
-        if (cursors.up.isDown)
-        {
-            player.body.moveUp(300)
-        }
-        else if (cursors.down.isDown)
-        {
-            player.body.moveDown(300);
-        }
-
-        if (cursors.left.isDown)
-        {
-            player.body.velocity.x = -300;
-        }
-        else if (cursors.right.isDown)
-        {
-            player.body.moveRight(300);
-        }    
-    }
-    
-
-
-
-    move_camera_by_pointer(game.input.mousePointer);
-
-    var ox = 0;
-    var oy = 0;
-
-
-    if (cursors.left.isDown)
-    {
-        ox = -4;
-    }
-    else if (cursors.right.isDown)
-    {
-        ox = 4;
-    }
-
-    if (cursors.up.isDown)
-    {
-        oy = -4;
-    }
-    else if (cursors.down.isDown)
-    {
-        oy = 4;
-    }
-
-    if (false)
-    {
-        game.camera.x += ox;
-        game.camera.y += oy;
-        ox = 0;
-        oy = 0;
-    }
-
-    updateMarker();
-
 
 
     visibleSprites = 0;
@@ -332,6 +286,102 @@ function update ()
         }
 
     }
+
+    updateMarker();
+
+}
+
+
+
+var o_mposition;
+function update () 
+{
+    
+    if (FOLLOW_CAM)
+    {
+
+        player.body.setZeroVelocity();
+
+        if (cursors.up.isDown)
+        {
+            player.body.moveUp(300)
+        }
+        else if (cursors.down.isDown)
+        {
+            player.body.moveDown(300);
+        }
+
+        if (cursors.left.isDown)
+        {
+            player.body.velocity.x = -300;
+        }
+        else if (cursors.right.isDown)
+        {
+            player.body.moveRight(300);
+        }    
+    }
+    
+
+
+
+    //move_camera_by_pointer(game.input.mousePointer);
+
+    var ox = 0;
+    var oy = 0;
+
+
+    if (cursors.left.isDown)
+    {
+        ox = -4;
+    }
+    else if (cursors.right.isDown)
+    {
+        ox = 4;
+    }
+
+    if (cursors.up.isDown)
+    {
+        oy = -4;
+    }
+    else if (cursors.down.isDown)
+    {
+        oy = 4;
+    }
+
+    if (false)
+    {
+        game.camera.x += ox;
+        game.camera.y += oy;
+        ox = 0;
+        oy = 0;
+    }
+
+
+    // scroll by mouse pointer drag
+    var o_pointer = game.input.mousePointer;
+
+    if (o_pointer.timeDown) {
+
+        if (o_pointer.isDown && !o_pointer.targetObject) {
+            if (o_mposition) {
+                ox -= o_mposition.x - o_pointer.position.x;
+                oy -= o_mposition.y - o_pointer.position.y;
+            }
+            o_mposition = o_pointer.position.clone();
+        }
+        if (o_pointer.isUp) { 
+            o_mposition = null; 
+        }
+    }
+
+
+
+
+
+    moveSprites(ox, oy);
+
+
+
  
 
 
@@ -348,18 +398,9 @@ function render() {
     game.debug.text('StageW=' + game.stage.width + ' StageH=' + game.stage.height, 16, 570);    
 }
 
-var o_mcamera;
 
 function move_camera_by_pointer(o_pointer) {
-    if (!o_pointer.timeDown) { return; }
-    if (o_pointer.isDown && !o_pointer.targetObject) {
-        if (o_mcamera) {
-            game.camera.x += o_mcamera.x - o_pointer.position.x;
-            game.camera.y += o_mcamera.y - o_pointer.position.y;
-        }
-        o_mcamera = o_pointer.position.clone();
-    }
-    if (o_pointer.isUp) { o_mcamera = null; }
+
 }
 
 
