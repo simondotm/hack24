@@ -622,8 +622,12 @@ function serverTileLoaded(data) {
     tileObject.id = data.TileId;
     tileObject.index = index;
 
-    var gravId = data.TileId.substring(0,8);
-    var imgUrl = "https://www.gravatar.com/avatar/" + gravId + "?s=64&d=identicon&r=PG";            
-    game.load.image(data.TileId.toString(), imgUrl);        
-    game.load.start();    
+//   var gravId = data.TileId.substring(0,8);
+//    var imgUrl = "https://www.gravatar.com/avatar/" + gravId + "?s=64&d=identicon&r=PG";            
+    var imgUrl = data.ImageUrl;
+    if (imgUrl != null)
+    {
+        game.load.image(data.TileId.toString(), imgUrl);        
+        game.load.start();    
+    }
 }
