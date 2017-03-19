@@ -1,9 +1,6 @@
 
-var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', { preload: preload, create: create, update: update, render: render });
+var game = new Phaser.Game(640, 640, Phaser.AUTO, 'phaser-example', { preload: preload, create: create, update: update, render: render });
 
-var TILE_W = 64;
-var TILE_H = 64;
-var TILE_SPRITE = 'unicorn64';
 
 var FOLLOW_CAM = false;
 
@@ -11,24 +8,23 @@ var sprite;
 
 var player;
 var cursors;
-var map;
-var layer;
-var currentLayer;
-var currentTile = 0;
-
 
 var pointerSprite;
 var unicornSprite;
+var gridImage;
 
-var MAP_MAX_W = 128;
-var MAP_MAX_H = 128;
+var globalImageId = 256;
 
-var TILE_MAX_W = 4;
-var TILE_MAX_H = 4;
+var TILE_W = 64;
+var TILE_H = 64;
+var TILE_SPRITE = 'unicorn64';
+
+var TILE_MAX_W = 640/64;//4;
+var TILE_MAX_H = 640/64; //4;
 
 
-var tileOffsetX = TILE_W*2;
-var tileOffsetY = TILE_H*2;
+var tileOffsetX = 0;//TILE_W*2;
+var tileOffsetY = 0;//TILE_H*2;
 
 var tileBoundsW = TILE_MAX_W*TILE_W;
 var tileBoundsH = TILE_MAX_H*TILE_H;
@@ -76,14 +72,16 @@ function preload() {
 
     game.load.image('pointer', 'assets/pointer.png');
 
+    game.load.image('grid', 'assets/grid64.png');
 
+/*
     game.scale.minWidth = 640;
     game.scale.minHeight = 480;
     game.scale.maxWidth = 1280;
     game.scale.maxHeight = 960;
     game.scale.pageAlignHorizontally = true;
     game.scale.scaleMode = Phaser.ScaleManager.RESIZE;
-
+*/
 
     if (FOLLOW_CAM)
     {
@@ -97,7 +95,12 @@ function preload() {
         for (var x=0; x<TILE_MAX_W; ++x)
         {
             var id = imageId.toString();
-            var url = "https://www.gravatar.com/avatar/" + id + "?s=64&d=identicon&r=PG";
+            var url;
+            //url = "https://www.gravatar.com/avatar/" + id + "?s=64&d=identicon&r=PG";
+            //url = "http://lorempixel.com/64/64/";
+            //url = "http://loremflickr.com/64/64";
+            //url = "https://unsplash.it/64/64/?random";
+            url = 'assets/grid64.png';
             game.load.image(id, url);
             imageId++;
         }
@@ -117,7 +120,10 @@ function create() {
     groupOverlays = game.add.group();
     groupCursors = game.add.group();
 
-
+    //	You can listen for each of these events from Phaser.Loader
+    game.load.onLoadStart.add(loadStart, this);
+    game.load.onFileComplete.add(fileComplete, this);
+    game.load.onLoadComplete.add(loadComplete, this);
 
 
 //    var newsprite = game.add.sprite(400, 300, 'unicorn');
@@ -145,11 +151,14 @@ function create() {
     {
         for (var x=0; x<TILE_MAX_W; ++x)
         {
+            //var id = 'grid';
             var id = imageId.toString(); // TILE_SPRITE
             var sprite = game.add.sprite(tileOffsetX + x*TILE_W, tileOffsetY + y*TILE_H, id);
             //sprite.inputEnabled = true;
             sprite.fixedToCamera = false;
+            sprite.simonsId = imageId;
             spriteArray.push(sprite);
+            
             imageId++;
         }
     }
@@ -270,24 +279,41 @@ function update ()
         sprite.x += ox;
         sprite.y += oy;
 
+        var dirty = false;
         if (sprite.x < (tileBoundsMinX0-TILE_W))
         {
             sprite.x += tileBoundsW;
+            dirty = true;
         }
 
         if (sprite.x > tileBoundsMinX1)
         {
             sprite.x -= tileBoundsW;
+            dirty = true;            
         }
 
 
         if (sprite.y < (tileBoundsMinY0-TILE_H))
         {
             sprite.y += tileBoundsH;
+            dirty = true;            
         }
         if (sprite.y > tileBoundsMinY1)
         {
             sprite.y -= tileBoundsH;
+            dirty = true;            
+        }
+
+        if (dirty)
+        {
+            //debugger;
+            var simonsId = sprite.simonsId;
+            //sprite.loadTexture('bollocks');
+
+// kills the renderer! presumably because we are replacing an existing resource
+//            var url = "https://www.gravatar.com/avatar/" + simonsId + "?s=64&d=identicon&r=PG";            
+//            game.load.image(simonsId.toString(), url);        
+//            game.load.start();    
         }
 
 
@@ -319,6 +345,7 @@ function render() {
     game.debug.text('CameraX=' + game.camera.x + ' CameraY=' + game.camera.y, 16, 510);    
     game.debug.text('VisibleSprites=' + visibleSprites + ' TotalSprites=' + totalSprites, 16, 530);    
     game.debug.text('MouseX=' + game.input.activePointer.x + ' MouseY=' + game.input.activePointer.y, 16, 550);    
+    game.debug.text('StageW=' + game.stage.width + ' StageH=' + game.stage.height, 16, 570);    
 }
 
 var o_mcamera;
@@ -394,5 +421,43 @@ function createTileSelector() {
     marker = game.add.graphics();
     marker.lineStyle(2, 0x000000, 1);
     marker.drawRect(0, 0, TILE_W, TILE_H);
+
+}
+
+
+
+
+function loadStart() {
+
+	console.log("Loading ...");
+
+}
+
+//	This callback is sent the following parameters:
+function fileComplete(progress, cacheKey, success, totalLoaded, totalFiles) 
+{
+	console.log("File Complete: " + progress + "% - " + totalLoaded + " out of " + totalFiles);
+
+/*
+	text.setText("File Complete: " + progress + "% - " + totalLoaded + " out of " + totalFiles);
+
+	var newImage = game.add.image(x, y, cacheKey);
+
+	newImage.scale.set(0.3);
+
+	x += newImage.width + 20;
+
+	if (x > 700)
+	{
+		x = 32;
+		y += 332;
+	}
+*/
+
+}
+
+function loadComplete() {
+
+	console.log("Load Complete");
 
 }
